@@ -1,6 +1,8 @@
 pragma solidity ^0.4.24;
 
 contract MonedaFutura is Owned {
+    int b; // desplazamiento recta regresion
+    int m; // pendiente recta regresion
     mapping(uint => uint) valorToken; // mapa tiempo -> valor
 
     function ejecutarRegresion() private {
@@ -39,8 +41,7 @@ contract MonedaFutura is Owned {
     // consultarTodasLasComprasFuturas(): método que podrá ejecutar el dueño 
     // del contrato para ver todas las compras futuras no ejecutadas aun.
     // -----------------------------------------------------------------------
-    function consultarTodasLasComprasFuturas() public {
-        require(msg.sender == owner);
+    function consultarTodasLasComprasFuturas() public onlyOwner {
         return; // TODO
     }
 
@@ -57,8 +58,7 @@ contract MonedaFutura is Owned {
     // ejecutarTodosLosContratos(): método que podrá ejecutar el dueño del contrato. 
     // Deposita todos los tokens comprados a futuro, siempre que la fecha se haya cumplido.
     // -----------------------------------------------------------------------
-    function ejecutarTodosLosContratos() public {
-        require(msg.sender == owner);
+    function ejecutarTodosLosContratos() public onlyOwner {
         return; // TODO
     }
 }
