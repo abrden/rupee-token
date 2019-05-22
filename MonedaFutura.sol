@@ -23,11 +23,16 @@ contract MonedaFutura is Owned {
       uint amount;
 
       bool done;
-      address buyer;
+      address holder;
     }
 
+    struct OwnerFutures {
+      Future[] futures;
+    }
+
+    mapping(address => OwnerFutures) ownerFutures;
+
     Transaction[] transactions;
-    Future[] futures;
 
     constructor() public {
       totalTransactions = 0;
@@ -77,7 +82,7 @@ contract MonedaFutura is Owned {
       require(t < now.add(90 days), "No se puede comprar para despues de 90 dias");
 
       uint price = calcularValorFuturo(t);
-      futures.push(Future(t, price, cantidad, false, msg.sender));
+      ownerFutures[msg.sender].futures.push(Future(t, price, cantidad, false, msg.sender));
     }
 
     // -----------------------------------------------------------------------
@@ -86,7 +91,12 @@ contract MonedaFutura is Owned {
     // que tiene por cobrar. Indicando si ya puede cobrarla o no.
     // -----------------------------------------------------------------------
     function consultarMisComprasFuturas() public view returns (Future[] memory) {
-        return; // TODO
+      for (uint i=0; i < ownerFutures[msg.sender].futures.length; i++) {
+        if (ownerFutures[msg.sender].futures[i].time > now) {
+          ownerFutures[msg.sender].futures[i].done = true;
+        }
+      }
+      return ownerFutures[msg.sender].futures;
     }
 
     // -----------------------------------------------------------------------
