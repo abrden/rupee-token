@@ -11,6 +11,7 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     uint public _totalSupply;
     uint256 public rupeePrice;
 
+
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
 

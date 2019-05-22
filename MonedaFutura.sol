@@ -1,20 +1,68 @@
 pragma solidity ^0.4.24;
 
 contract MonedaFutura is Owned {
+    
+    using SafeMath for uint;
+    using SafeMath for int;
+
+    uint totalTransactions;
     int b; // desplazamiento recta regresion
     int m; // pendiente recta regresion
-    mapping(uint => uint) valorToken; // mapa tiempo -> valor
+    // Precio = B + M * Fecha
 
-    function ejecutarRegresion() private {
-        return; // TODO
+    mapping(uint => uint) valorToken; // mapa tiempo -> valor
+    
+    struct Transaction {
+      uint time;
+      uint price;
+    }
+
+    struct Future {
+      uint time;
+      uint price;
+      uint amount;
+
+      bool done;
+      address buyer;
+    }
+
+    Transaction[] transactions;
+    Future[] futures;
+
+    constructor() public {
+      totalTransactions = 0;
+      b = 0;
+      m = 0;
+    }
+
+    function ejecutarRegresion() public {
+      require(totalTransactions >= 4,
+              "No hay suficientes transacciones para ejecutar la regresion");
+
+      uint price = 0;
+      uint time = 0;
+      uint tprice = 0;
+      uint ttime = 0;
+
+      for (uint i = transactions.length.sub(4); i < transactions.length; i++) {
+        Transaction transaction = transactions[i];
+
+        price = price.add(transaction.price);
+        time = time.add(transaction.time);
+        tprice = tprice.add(transaction.time.mul(transaction.price));
+        ttime = ttime.add(transaction.time.mul(transaction.time));
+      }
+
+      b = price.sub((b.mul(time))).div(4);
+      m = (4.mul(tprice).sub((time.mul(price)))).div((4.mul(ttime)).sub((time.mul(time))));
     }
 
     // -----------------------------------------------------------------------
     // Este método será un método “gratuito” (no consumirá ether) y
     // devolverá el valor del token, para un fecha t pasada por parámetro.
     // -----------------------------------------------------------------------
-    function calcularValorFuturo(uint t) public returns (uint valorFuturo) {
-        return valor[t]; // TODO
+    function calcularValorFuturo(uint t) public view returns (uint valorFuturo) {
+      return b.add(m.mul(t));
     }
 
     // -----------------------------------------------------------------------
@@ -25,7 +73,11 @@ contract MonedaFutura is Owned {
     // No podrá comprar a más de 90 días.
     // -----------------------------------------------------------------------
     function comprarMonedaFutura(uint t, uint cantidad) public payable {
-        return; // TODO
+      require(t > now, "La fecha no puede haber pasado ya");
+      require(t < now.add(90 days), "No se puede comprar para despues de 90 dias");
+
+      uint price = calcularValorFuturo(t);
+      futures.push(Future(t, price, cantidad, false, msg.sender));
     }
 
     // -----------------------------------------------------------------------
@@ -33,7 +85,7 @@ contract MonedaFutura is Owned {
     // dirección (cuenta de etherum), visualizar todas las compras futuras 
     // que tiene por cobrar. Indicando si ya puede cobrarla o no.
     // -----------------------------------------------------------------------
-    function consultarMisComprasFuturas() public {
+    function consultarMisComprasFuturas() public view returns (Future[] memory) {
         return; // TODO
     }
 
