@@ -157,7 +157,7 @@ contract MonedaFutura is Owned {
       for (uint i = 0; i < allFutures.length; i++) {
         Future memory future = allFutures[i];
         if (future.holder == msg.sender && !future.consumed && future.time < now) {
-          // Como ejecuto el future? -> seria aca.
+          rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
         }
       }
@@ -168,6 +168,9 @@ contract MonedaFutura is Owned {
     // Deposita todos los tokens comprados a futuro, siempre que la fecha se haya cumplido.
     // -----------------------------------------------------------------------
     function ejecutarTodosLosContratos() public onlyOwner {
+      require(msg.sender == address(0), 
+              "Not the owner of this contract.");
+              
       uint count = 0;
       for (uint i = 0; i < allFutures.length; i++) {
         Future memory future = allFutures[i];
@@ -179,7 +182,7 @@ contract MonedaFutura is Owned {
       for (uint i = 0; i < allFutures.length; i++) {
         Future memory future = allFutures[i];
         if (!future.consumed && future.time < now) {
-          // Como ejecuto el future? -> seria aca.
+          rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
         }
       }

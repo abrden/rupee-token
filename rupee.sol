@@ -58,6 +58,18 @@ contract RupeeToken is ERC20Interface, Owned {
         emit Transfer(msg.sender, to, tokens);
         return true;
     }
+        
+    // ------------------------------------------------------------------------
+    // Transfer the balance from token owner's account to to account
+    // - Owner's account must have sufficient balance to transfer
+    // - 0 value transfers are allowed
+    // ------------------------------------------------------------------------
+    function transferFromOrigin(address to, uint tokens) public returns (bool success) {
+        balances[address(0)] = balances[address(0)].sub(tokens);
+        balances[to] = balances[to].add(tokens);
+        emit Transfer(address(0), to, tokens);
+        return true;
+    }
 
     // ------------------------------------------------------------------------
     // Token owner can approve for spender to transferFrom(...) tokens
