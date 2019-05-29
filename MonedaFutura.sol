@@ -159,6 +159,7 @@ contract MonedaFutura is Owned {
         if (future.holder == msg.sender && !future.consumed && future.time < now) {
           rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
+          future.chargeable = true;
         }
       }
     }
@@ -184,6 +185,7 @@ contract MonedaFutura is Owned {
         if (!future.consumed && future.time < now) {
           rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
+          future.chargeable = true;
         }
       }
     }
