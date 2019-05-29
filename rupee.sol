@@ -6,7 +6,10 @@ import "./ERC20Interface.sol";
 // ERC20 Token, with the addition of symbol, name and decimals and assisted
 // token transfers
 // ----------------------------------------------------------------------------
-contract RupeeToken is ERC20Interface, Owned, SafeMath {
+contract RupeeToken is ERC20Interface, Owned {
+    
+    using SafeMath for uint;
+    
     string public symbol;
     string public  name;
     uint8 public decimals;
@@ -50,8 +53,8 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transfer(address to, uint tokens) public returns (bool success) {
-        balances[msg.sender] = safeSub(balances[msg.sender], tokens);
-        balances[to] = safeAdd(balances[to], tokens);
+        balances[msg.sender] = balances[msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
         emit Transfer(msg.sender, to, tokens);
         return true;
     }
@@ -80,9 +83,9 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
-        balances[from] = safeSub(balances[from], tokens);
-        allowed[from][msg.sender] = safeSub(allowed[from][msg.sender], tokens);
-        balances[to] = safeAdd(balances[to], tokens);
+        balances[from] = balances[from].add(tokens);
+        allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
         emit Transfer(from, to, tokens);
         return true;
     }
@@ -116,8 +119,8 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath {
 
     function buy() public payable returns (uint amount) {
         amount = msg.value / rupeePrice;
-        balances[msg.sender] = safeAdd(balances[msg.sender], amount);
-        balances[address(0)] = safeSub(balances[address(0)], amount);
+        balances[msg.sender] = balances[msg.sender].add(amount);
+        balances[address(0)] = balances[address(0)].sub(amount);
 
         // Subir valor de moneda
         rupeePrice += 2;
@@ -127,8 +130,8 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath {
     }
 
     function sell(uint amount) public returns (uint revenue) {
-        balances[address(0)] = safeAdd(balances[address(0)], amount);
-        balances[msg.sender] = safeSub(balances[msg.sender], amount);
+        balances[address(0)] = balances[address(0)].add(amount);
+        balances[msg.sender] = balances[msg.sender].sub(amount);
         msg.sender.transfer(amount * rupeePrice);
         
         // Bajar valor de moneda

@@ -1,4 +1,5 @@
 pragma solidity ^0.5.1;
+pragma experimental ABIEncoderV2;
 
 import "./ERC20Interface.sol";
 import "./rupee.sol";
@@ -6,13 +7,12 @@ import "./rupee.sol";
 contract MonedaFutura is Owned {
     
     using SafeMath for uint;
-    using SafeMath for int;
 
     RupeeToken rupeeToken;
 
     uint totalTransactions;
-    int b; // desplazamiento recta regresion
-    int m; // pendiente recta regresion
+    uint b; // desplazamiento recta regresion
+    uint m; // pendiente recta regresion
     // Precio = B + M * Fecha
 
     mapping(uint => uint) valorToken; // mapa tiempo -> valor
@@ -27,15 +27,10 @@ contract MonedaFutura is Owned {
       uint price;
       uint amount;
 
-      bool done;
+      bool chargeable;
+      bool consumed;
       address holder;
     }
-
-    struct OwnerFutures {
-      Future[] futures;
-    }
-
-    mapping(address => OwnerFutures) ownerFutures;
 
     Future[] allFutures;
 
@@ -48,7 +43,8 @@ contract MonedaFutura is Owned {
     }
 
     function ejecutarRegresion() public {
-      require(totalTransactions >= 4,
+      uint max = 4;
+      require(totalTransactions >= max,
               "No hay suficientes transacciones para ejecutar la regresion");
 
       uint price = 0;
@@ -56,8 +52,8 @@ contract MonedaFutura is Owned {
       uint tprice = 0;
       uint ttime = 0;
 
-      for (uint i = transactions.length.sub(4); i < transactions.length; i++) {
-        Transaction transaction = transactions[i];
+      for (uint i = transactions.length.sub(max); i < transactions.length; i++) {
+        Transaction memory transaction = transactions[i];
 
         price = price.add(transaction.price);
         time = time.add(transaction.time);
@@ -65,8 +61,8 @@ contract MonedaFutura is Owned {
         ttime = ttime.add(transaction.time.mul(transaction.time));
       }
 
-      b = price.sub((b.mul(time))).div(4);
-      m = (4.mul(tprice).sub((time.mul(price)))).div((4.mul(ttime)).sub((time.mul(time))));
+      b = price.sub((b.mul(time))).div(max);
+      m = (max.mul(tprice).sub((time.mul(price)))).div((max.mul(ttime)).sub((time.mul(time))));
     }
 
     // -----------------------------------------------------------------------
@@ -89,8 +85,7 @@ contract MonedaFutura is Owned {
       require(t < now.add(90 days), "No se puede comprar para despues de 90 dias");
 
       uint price = calcularValorFuturo(t);
-      ownerFutures[msg.sender].futures.push(Future(t, price, cantidad, false, msg.sender));
-      allFutures.push(Future(t, price, cantidad, false, msg.sender));
+      allFutures.push(Future(t, price, cantidad, false, false, msg.sender));
     }
 
     // -----------------------------------------------------------------------
@@ -99,24 +94,50 @@ contract MonedaFutura is Owned {
     // que tiene por cobrar. Indicando si ya puede cobrarla o no.
     // -----------------------------------------------------------------------
     function consultarMisComprasFuturas() public view returns (Future[] memory) {
-      for (uint i=0; i < ownerFutures[msg.sender].futures.length; i++) {
-        if (ownerFutures[msg.sender].futures[i].time > now) {
-          ownerFutures[msg.sender].futures[i].done = true;
+      uint count = 0;
+      for (uint i = 0; i < allFutures.length; i++) {
+        if (allFutures[i].holder == msg.sender) {
+          count = count + 1;
         }
       }
-      return ownerFutures[msg.sender].futures;
+      
+      Future[] memory futures = new Future[](count);
+      count = 0; // Porque solidity es un parto para arrays dinamicos
+      for (uint i = 0; i < allFutures.length; i++) {
+        if (allFutures[i].holder == msg.sender) {
+          Future memory future = allFutures[i];
+          if (future.time < now) {
+                future.chargeable = true;
+          }
+          futures[count++] = future;
+        }
+      }
+      
+      return futures;
     }
 
     // -----------------------------------------------------------------------
     // consultarTodasLasComprasFuturas(): método que podrá ejecutar el dueño 
     // del contrato para ver todas las compras futuras no ejecutadas aun.
     // -----------------------------------------------------------------------
-    function consultarTodasLasComprasFuturas() public onlyOwner returns (Future[] memory) {
-      Future[] memory value = new Future[](allFutures.length);
+    function consultarTodasLasComprasFuturas() public view onlyOwner returns (Future[] memory) {
+      uint count = 0;
       for (uint i = 0; i < allFutures.length; i++) {
-        value.push(allFutures[i]);
+        Future memory future = allFutures[i];
+        if (!future.consumed && future.time < now) {
+          count = count + 1;
+        }
       }
-      value;
+      
+      Future[] memory futures = new Future[](count);
+      count = 0; // Porque solidity es un parto para arrays dinamicos
+      for (uint i = 0; i < allFutures.length; i++) {
+        Future memory future = allFutures[i];
+        if (!future.consumed && future.time < now) {
+          futures[count++] = allFutures[i];
+        }
+      }
+      return futures;
     }
 
     // -----------------------------------------------------------------------
@@ -125,11 +146,19 @@ contract MonedaFutura is Owned {
     // Siempre y cuando la fecha ya haya pasado.
     // -----------------------------------------------------------------------
     function ejecutarMisContratos() public {
-      uint length = ownerFutures[msg.sender].futures.length;
-      for (uint = 0; i < length; i++) {
-        Future future = ownerFutures[msg.sender].futures[i];
-        if (future.time > now) {
-          owner[0].transfer(msg.sender, future.amount);
+      uint count = 0;
+      for (uint i = 0; i < allFutures.length; i++) {
+        Future memory future = allFutures[i];
+        if (future.holder == msg.sender && !future.consumed && future.time < now) {
+          count = count + 1;
+        }
+      }
+      
+      for (uint i = 0; i < allFutures.length; i++) {
+        Future memory future = allFutures[i];
+        if (future.holder == msg.sender && !future.consumed && future.time < now) {
+          // Como ejecuto el future? -> seria aca.
+          future.consumed = true;
         }
       }
     }
@@ -139,7 +168,21 @@ contract MonedaFutura is Owned {
     // Deposita todos los tokens comprados a futuro, siempre que la fecha se haya cumplido.
     // -----------------------------------------------------------------------
     function ejecutarTodosLosContratos() public onlyOwner {
-
+      uint count = 0;
+      for (uint i = 0; i < allFutures.length; i++) {
+        Future memory future = allFutures[i];
+        if (!future.consumed && future.time < now) {
+          count = count + 1;
+        }
+      }
+      
+      for (uint i = 0; i < allFutures.length; i++) {
+        Future memory future = allFutures[i];
+        if (!future.consumed && future.time < now) {
+          // Como ejecuto el future? -> seria aca.
+          future.consumed = true;
+        }
+      }
     }
 }
 
