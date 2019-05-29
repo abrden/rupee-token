@@ -1,9 +1,14 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.1;
+
+import "./ERC20Interface.sol";
+import "./rupee.sol";
 
 contract MonedaFutura is Owned {
     
     using SafeMath for uint;
     using SafeMath for int;
+
+    RupeeToken rupeeToken;
 
     uint totalTransactions;
     int b; // desplazamiento recta regresion
@@ -31,6 +36,8 @@ contract MonedaFutura is Owned {
     }
 
     mapping(address => OwnerFutures) ownerFutures;
+
+    Future[] allFutures;
 
     Transaction[] transactions;
 
@@ -83,6 +90,7 @@ contract MonedaFutura is Owned {
 
       uint price = calcularValorFuturo(t);
       ownerFutures[msg.sender].futures.push(Future(t, price, cantidad, false, msg.sender));
+      allFutures.push(Future(t, price, cantidad, false, msg.sender));
     }
 
     // -----------------------------------------------------------------------
@@ -103,8 +111,12 @@ contract MonedaFutura is Owned {
     // consultarTodasLasComprasFuturas(): método que podrá ejecutar el dueño 
     // del contrato para ver todas las compras futuras no ejecutadas aun.
     // -----------------------------------------------------------------------
-    function consultarTodasLasComprasFuturas() public onlyOwner {
-        return; // TODO
+    function consultarTodasLasComprasFuturas() public onlyOwner returns (Future[] memory) {
+      Future[] memory value = new Future[](allFutures.length);
+      for (uint i = 0; i < allFutures.length; i++) {
+        value.push(allFutures[i]);
+      }
+      value;
     }
 
     // -----------------------------------------------------------------------
@@ -113,7 +125,13 @@ contract MonedaFutura is Owned {
     // Siempre y cuando la fecha ya haya pasado.
     // -----------------------------------------------------------------------
     function ejecutarMisContratos() public {
-        return; // TODO
+      uint length = ownerFutures[msg.sender].futures.length;
+      for (uint = 0; i < length; i++) {
+        Future future = ownerFutures[msg.sender].futures[i];
+        if (future.time > now) {
+          owner[0].transfer(msg.sender, future.amount);
+        }
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -121,6 +139,7 @@ contract MonedaFutura is Owned {
     // Deposita todos los tokens comprados a futuro, siempre que la fecha se haya cumplido.
     // -----------------------------------------------------------------------
     function ejecutarTodosLosContratos() public onlyOwner {
-        return; // TODO
+
     }
 }
+
