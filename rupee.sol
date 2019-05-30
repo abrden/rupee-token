@@ -1,10 +1,15 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.1;
+
+import "./ERC20Interface.sol";
 
 // ----------------------------------------------------------------------------
 // ERC20 Token, with the addition of symbol, name and decimals and assisted
 // token transfers
 // ----------------------------------------------------------------------------
-contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
+contract RupeeToken is ERC20Interface, Owned {
+    
+    using SafeMath for uint;
+    
     string public symbol;
     string public  name;
     uint8 public decimals;
@@ -31,14 +36,14 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     // ------------------------------------------------------------------------
     // Total supply
     // ------------------------------------------------------------------------
-    function totalSupply() public constant returns (uint) {
+    function totalSupply() public view returns (uint) {
         return _totalSupply  - balances[address(0)];
     }
 
     // ------------------------------------------------------------------------
     // Get the token balance for account tokenOwner
     // ------------------------------------------------------------------------
-    function balanceOf(address tokenOwner) public constant returns (uint balance) {
+    function balanceOf(address tokenOwner) public view returns (uint balance) {
         return balances[tokenOwner];
     }
 
@@ -48,9 +53,21 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transfer(address to, uint tokens) public returns (bool success) {
-        balances[msg.sender] = safeSub(balances[msg.sender], tokens);
-        balances[to] = safeAdd(balances[to], tokens);
+        balances[msg.sender] = balances[msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
         emit Transfer(msg.sender, to, tokens);
+        return true;
+    }
+        
+    // ------------------------------------------------------------------------
+    // Transfer the balance from token owner's account to to account
+    // - Owner's account must have sufficient balance to transfer
+    // - 0 value transfers are allowed
+    // ------------------------------------------------------------------------
+    function transferFromOrigin(address to, uint tokens) public returns (bool success) {
+        balances[address(0)] = balances[address(0)].sub(tokens);
+        balances[to] = balances[to].add(tokens);
+        emit Transfer(address(0), to, tokens);
         return true;
     }
 
@@ -78,9 +95,9 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFrom(address from, address to, uint tokens) public returns (bool success) {
-        balances[from] = safeSub(balances[from], tokens);
-        allowed[from][msg.sender] = safeSub(allowed[from][msg.sender], tokens);
-        balances[to] = safeAdd(balances[to], tokens);
+        balances[from] = balances[from].add(tokens);
+        allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
+        balances[to] = balances[to].add(tokens);
         emit Transfer(from, to, tokens);
         return true;
     }
@@ -89,7 +106,7 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     // Returns the amount of tokens approved by the owner that can be
     // transferred to the spender's account
     // ------------------------------------------------------------------------
-    function allowance(address tokenOwner, address spender) public constant returns (uint remaining) {
+    function allowance(address tokenOwner, address spender) public view returns (uint remaining) {
         return allowed[tokenOwner][spender];
     }
 
@@ -98,10 +115,10 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
     // from the token owner's account. The spender contract function
     // receiveApproval(...) is then executed
     // ------------------------------------------------------------------------
-    function approveAndCall(address spender, uint tokens, bytes data) public returns (bool success) {
+    function approveAndCall(address spender, uint tokens, bytes memory data) public returns (bool success) {
         allowed[msg.sender][spender] = tokens;
         emit Approval(msg.sender, spender, tokens);
-        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, this, data);
+        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, address(0), data);
         return true;
     }
 
@@ -114,26 +131,25 @@ contract RupeeToken is ERC20Interface, Owned, SafeMath, MonedaFutura {
 
     function buy() public payable returns (uint amount) {
         amount = msg.value / rupeePrice;
-        balanceOf[msg.sender] = safeAdd(balanceOf[msg.sender], amount);
-        balanceOf[this] = safeSub(balanceOf[this], amount);
+        balances[msg.sender] = balances[msg.sender].add(amount);
+        balances[address(0)] = balances[address(0)].sub(amount);
 
         // Subir valor de moneda
-        rupeePrice += 2
+        rupeePrice += 2;
 
-        emit Transfer(this, msg.sender, amount);
+        emit Transfer(address(0), msg.sender, amount);
         return amount;
     }
 
     function sell(uint amount) public returns (uint revenue) {
-        balanceOf[this] = safeAdd(balanceOf[this], amount);
-        balanceOf[msg.sender] = safeSub(balanceOf[msg.sender], amount);
-        revenue = amount * rupeePrice;
-        require(msg.sender.transfer(revenue));
+        balances[address(0)] = balances[address(0)].add(amount);
+        balances[msg.sender] = balances[msg.sender].sub(amount);
+        msg.sender.transfer(amount * rupeePrice);
         
         // Bajar valor de moneda
-        rupeePrice -= 2
+        rupeePrice = rupeePrice - 2;
 
-        emit Transfer(msg.sender, this, amount);
+        emit Transfer(msg.sender, address(0), amount);
         return revenue;
     }
 }
