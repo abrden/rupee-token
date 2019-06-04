@@ -7,9 +7,9 @@ import "./ERC20Interface.sol";
 // token transfers
 // ----------------------------------------------------------------------------
 contract RupeeToken is ERC20Interface, Owned {
-    
+
     using SafeMath for uint;
-    
+
     string public symbol;
     string public  name;
     uint8 public decimals;
@@ -28,8 +28,8 @@ contract RupeeToken is ERC20Interface, Owned {
         name = "Rupee Token";
         decimals = 18; // meaning that a coin can be splitted in 18 parts
         _totalSupply = 100000000000000000000000000;
-        balances[0xdA2d5D509535459027C9c4c63d214E2926f5d2cc] = _totalSupply;
-        emit Transfer(address(0), 0xdA2d5D509535459027C9c4c63d214E2926f5d2cc, _totalSupply);
+        balances[owner] = _totalSupply;
+        emit Transfer(address(0), owner, _totalSupply);
         rupeePrice = 256;
     }
 
@@ -37,7 +37,7 @@ contract RupeeToken is ERC20Interface, Owned {
     // Total supply
     // ------------------------------------------------------------------------
     function totalSupply() public view returns (uint) {
-        return _totalSupply  - balances[address(0)];
+        return _totalSupply.sub(balances[address(0)]);
     }
 
     // ------------------------------------------------------------------------
@@ -58,16 +58,16 @@ contract RupeeToken is ERC20Interface, Owned {
         emit Transfer(msg.sender, to, tokens);
         return true;
     }
-        
+
     // ------------------------------------------------------------------------
     // Transfer the balance from token owner's account to to account
     // - Owner's account must have sufficient balance to transfer
     // - 0 value transfers are allowed
     // ------------------------------------------------------------------------
     function transferFromOrigin(address to, uint tokens) public returns (bool success) {
-        balances[address(0)] = balances[address(0)].sub(tokens);
+        balances[owner] = balances[owner].sub(tokens);
         balances[to] = balances[to].add(tokens);
-        emit Transfer(address(0), to, tokens);
+        emit Transfer(owner, to, tokens);
         return true;
     }
 
@@ -118,7 +118,7 @@ contract RupeeToken is ERC20Interface, Owned {
     function approveAndCall(address spender, uint tokens, bytes memory data) public returns (bool success) {
         allowed[msg.sender][spender] = tokens;
         emit Approval(msg.sender, spender, tokens);
-        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, address(0), data);
+        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, owner, data);
         return true;
     }
 
@@ -132,24 +132,24 @@ contract RupeeToken is ERC20Interface, Owned {
     function buy() public payable returns (uint amount) {
         amount = msg.value / rupeePrice;
         balances[msg.sender] = balances[msg.sender].add(amount);
-        balances[address(0)] = balances[address(0)].sub(amount);
+        balances[owner] = balances[owner].sub(amount);
 
         // Subir valor de moneda
         rupeePrice += 2;
 
-        emit Transfer(address(0), msg.sender, amount);
+        emit Transfer(owner, msg.sender, amount);
         return amount;
     }
 
     function sell(uint amount) public returns (uint revenue) {
-        balances[address(0)] = balances[address(0)].add(amount);
+        balances[owner] = balances[owner].add(amount);
         balances[msg.sender] = balances[msg.sender].sub(amount);
         msg.sender.transfer(amount * rupeePrice);
         
         // Bajar valor de moneda
         rupeePrice = rupeePrice - 2;
 
-        emit Transfer(msg.sender, address(0), amount);
+        emit Transfer(msg.sender, owner, amount);
         return revenue;
     }
 }
