@@ -16,7 +16,6 @@ contract RupeeToken is ERC20Interface, Owned {
     uint public _totalSupply;
     uint256 public rupeePrice;
 
-
     mapping(address => uint) balances;
     mapping(address => mapping(address => uint)) allowed;
 
@@ -28,7 +27,7 @@ contract RupeeToken is ERC20Interface, Owned {
         name = "Rupee Token";
         decimals = 18; // meaning that a coin can be splitted in 18 parts
         _totalSupply = 100000000000000000000000000;
-        balances[owner] = _totalSupply;
+        balances[msg.sender] = _totalSupply;
         emit Transfer(address(0), owner, _totalSupply);
         rupeePrice = 256;
     }
