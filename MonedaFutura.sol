@@ -4,11 +4,9 @@ pragma experimental ABIEncoderV2;
 import "./ERC20Interface.sol";
 import "./rupee.sol";
 
-contract MonedaFutura is Owned {
+contract MonedaFutura is Owned, RupeeToken {
     
     using SafeMath for uint;
-
-    RupeeToken rupeeToken;
 
     uint totalTransactions;
     uint b; // desplazamiento recta regresion
@@ -157,7 +155,7 @@ contract MonedaFutura is Owned {
       for (uint i = 0; i < allFutures.length; i++) {
         Future memory future = allFutures[i];
         if (future.holder == msg.sender && !future.consumed && future.time < now) {
-          rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
+          transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
           future.chargeable = true;
         }
@@ -183,7 +181,7 @@ contract MonedaFutura is Owned {
       for (uint i = 0; i < allFutures.length; i++) {
         Future memory future = allFutures[i];
         if (!future.consumed && future.time < now) {
-          rupeeToken.transferFromOrigin(future.holder, future.price / future.amount);
+          transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
           future.chargeable = true;
         }
