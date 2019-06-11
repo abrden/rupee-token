@@ -48,17 +48,17 @@ contract MonedaFutura is Owned, RupeeToken {
       uint tprice = 0;
       uint ttime = 0;
 
-      for (uint i = transacciones.length.sub(max); i < transacciones.length; i++) {
+      for (uint i = transacciones.length - max; i < transacciones.length; i++) {
         Transaccion memory transaccion = transacciones[i];
 
-        price = price.add(transaccion.price);
-        time = time.add(transaccion.time);
-        tprice = tprice.add(transaccion.time.mul(transaccion.price));
-        ttime = ttime.add(transaccion.time.mul(transaccion.time));
+        price = price + transaccion.price;
+        time = time + transaccion.time;
+        tprice = tprice + (transaccion.time * transaccion.price);
+        ttime = ttime + (transaccion.time * transaccion.time);
       }
 
-      b = price.sub((b.mul(time))).div(max);
-      m = (max.mul(tprice).sub((time.mul(price)))).div((max.mul(ttime)).sub((time.mul(time))));
+      b = (price - (b * time)) / max;
+      m = ((max * tprice) - (time * price)) / ((max * ttime) - (time * time));
     }
 
     // -----------------------------------------------------------------------
@@ -66,7 +66,7 @@ contract MonedaFutura is Owned, RupeeToken {
     // devolverá el valor del token, para un fecha t pasada por parámetro.
     // -----------------------------------------------------------------------
     function calcularValorFuturo(uint t) public view returns (uint valorFuturo) {
-      return b.add(m.mul(t));
+      return b + (m * t);
     }
 
     // -----------------------------------------------------------------------
@@ -217,4 +217,3 @@ contract MonedaFutura is Owned, RupeeToken {
       return revenue;
     }
 }
-
