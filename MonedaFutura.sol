@@ -207,7 +207,7 @@ contract MonedaFutura is Owned, RupeeToken {
 
       // Bajar valor de moneda
       if (rupeePrice > 0) {
-        rupeePrice =- 2;
+        rupeePrice = rupeePrice - 2;
       }
       // Registrar transacción
       totalTransacciones++;
