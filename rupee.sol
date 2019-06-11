@@ -127,28 +127,4 @@ contract RupeeToken is ERC20Interface, Owned {
     function transferAnyERC20Token(address tokenAddress, uint tokens) public onlyOwner returns (bool success) {
         return ERC20Interface(tokenAddress).transfer(owner, tokens);
     }
-
-    function buy() public payable returns (uint amount) {
-        amount = msg.value / rupeePrice;
-        balances[msg.sender] = balances[msg.sender].add(amount);
-        balances[owner] = balances[owner].sub(amount);
-
-        // Subir valor de moneda
-        rupeePrice += 2;
-
-        emit Transfer(owner, msg.sender, amount);
-        return amount;
-    }
-
-    function sell(uint amount) public returns (uint revenue) {
-        balances[owner] = balances[owner].add(amount);
-        balances[msg.sender] = balances[msg.sender].sub(amount);
-        msg.sender.transfer(amount * rupeePrice);
-        
-        // Bajar valor de moneda
-        rupeePrice = rupeePrice - 2;
-
-        emit Transfer(msg.sender, owner, amount);
-        return revenue;
-    }
 }
