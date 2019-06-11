@@ -8,19 +8,19 @@ contract MonedaFutura is Owned, RupeeToken {
     
     using SafeMath for uint;
 
-    uint totalTransactions;
+    uint totalTransacciones;
     uint b; // desplazamiento recta regresion
     uint m; // pendiente recta regresion
     // Precio = B + M * Fecha
 
-    mapping(uint => uint) valorToken; // mapa tiempo -> valor
-    
-    struct Transaction {
+    struct Transaccion {
       uint time;
       uint price;
     }
 
-    struct Future {
+    Transaccion[] transacciones;
+
+    struct Futura {
       uint time;
       uint price;
       uint amount;
@@ -30,19 +30,17 @@ contract MonedaFutura is Owned, RupeeToken {
       address holder;
     }
 
-    Future[] allFutures;
-
-    Transaction[] transactions;
+    Futura[] futuras;
 
     constructor() public {
-      totalTransactions = 0;
+      totalTransacciones = 0;
       b = 0;
       m = 0;
     }
 
     function ejecutarRegresion() public {
       uint max = 4;
-      require(totalTransactions >= max,
+      require(totalTransacciones >= max,
               "No hay suficientes transacciones para ejecutar la regresion");
 
       uint price = 0;
@@ -50,13 +48,13 @@ contract MonedaFutura is Owned, RupeeToken {
       uint tprice = 0;
       uint ttime = 0;
 
-      for (uint i = transactions.length.sub(max); i < transactions.length; i++) {
-        Transaction memory transaction = transactions[i];
+      for (uint i = transacciones.length.sub(max); i < transacciones.length; i++) {
+        Transaccion memory transaccion = transacciones[i];
 
-        price = price.add(transaction.price);
-        time = time.add(transaction.time);
-        tprice = tprice.add(transaction.time.mul(transaction.price));
-        ttime = ttime.add(transaction.time.mul(transaction.time));
+        price = price.add(transaccion.price);
+        time = time.add(transaccion.time);
+        tprice = tprice.add(transaccion.time.mul(transaccion.price));
+        ttime = ttime.add(transaccion.time.mul(transaccion.time));
       }
 
       b = price.sub((b.mul(time))).div(max);
@@ -83,7 +81,7 @@ contract MonedaFutura is Owned, RupeeToken {
       require(t < now.add(90 days), "No se puede comprar para despues de 90 dias");
 
       uint price = calcularValorFuturo(t);
-      allFutures.push(Future(t, price, cantidad, false, false, msg.sender));
+      futuras.push(Futura(t, price, cantidad, false, false, msg.sender));
     }
 
     // -----------------------------------------------------------------------
@@ -91,19 +89,19 @@ contract MonedaFutura is Owned, RupeeToken {
     // dirección (cuenta de etherum), visualizar todas las compras futuras 
     // que tiene por cobrar. Indicando si ya puede cobrarla o no.
     // -----------------------------------------------------------------------
-    function consultarMisComprasFuturas() public view returns (Future[] memory) {
+    function consultarMisComprasFuturas() public view returns (Futura[] memory) {
       uint count = 0;
-      for (uint i = 0; i < allFutures.length; i++) {
-        if (allFutures[i].holder == msg.sender) {
+      for (uint i = 0; i < futuras.length; i++) {
+        if (futuras[i].holder == msg.sender) {
           count = count + 1;
         }
       }
       
-      Future[] memory futures = new Future[](count);
+      Futura[] memory futures = new Futura[](count);
       count = 0; // Porque solidity es un parto para arrays dinamicos
-      for (uint i = 0; i < allFutures.length; i++) {
-        if (allFutures[i].holder == msg.sender) {
-          Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        if (futuras[i].holder == msg.sender) {
+          Futura memory future = futuras[i];
           if (future.time < now) {
                 future.chargeable = true;
           }
@@ -118,21 +116,21 @@ contract MonedaFutura is Owned, RupeeToken {
     // consultarTodasLasComprasFuturas(): método que podrá ejecutar el dueño 
     // del contrato para ver todas las compras futuras no ejecutadas aun.
     // -----------------------------------------------------------------------
-    function consultarTodasLasComprasFuturas() public view onlyOwner returns (Future[] memory) {
+    function consultarTodasLasComprasFuturas() public view onlyOwner returns (Futura[] memory) {
       uint count = 0;
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (!future.consumed && future.time < now) {
           count = count + 1;
         }
       }
       
-      Future[] memory futures = new Future[](count);
+      Futura[] memory futures = new Futura[](count);
       count = 0; // Porque solidity es un parto para arrays dinamicos
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (!future.consumed && future.time < now) {
-          futures[count++] = allFutures[i];
+          futures[count++] = futuras[i];
         }
       }
       return futures;
@@ -145,15 +143,15 @@ contract MonedaFutura is Owned, RupeeToken {
     // -----------------------------------------------------------------------
     function ejecutarMisContratos() public {
       uint count = 0;
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (future.holder == msg.sender && !future.consumed && future.time < now) {
           count = count + 1;
         }
       }
       
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (future.holder == msg.sender && !future.consumed && future.time < now) {
           transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
@@ -167,25 +165,56 @@ contract MonedaFutura is Owned, RupeeToken {
     // Deposita todos los tokens comprados a futuro, siempre que la fecha se haya cumplido.
     // -----------------------------------------------------------------------
     function ejecutarTodosLosContratos() public onlyOwner {
-      require(msg.sender == address(0), 
-              "Not the owner of this contract.");
+      require(msg.sender == address(0), "No es el dueño de este contrato");
               
       uint count = 0;
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (!future.consumed && future.time < now) {
           count = count + 1;
         }
       }
       
-      for (uint i = 0; i < allFutures.length; i++) {
-        Future memory future = allFutures[i];
+      for (uint i = 0; i < futuras.length; i++) {
+        Futura memory future = futuras[i];
         if (!future.consumed && future.time < now) {
           transferFromOrigin(future.holder, future.price / future.amount);
           future.consumed = true;
           future.chargeable = true;
         }
       }
+    }
+
+    function buy() public payable returns (uint amount) {
+      amount = msg.value / rupeePrice;
+      balances[msg.sender] = balances[msg.sender].add(amount);
+      balances[owner] = balances[owner].sub(amount);
+
+      // Subir valor de moneda
+      rupeePrice += 2;
+      // Registrar transacción
+      totalTransacciones++;
+      transacciones.push(Transaccion(now, rupeePrice));
+
+      emit Transfer(owner, msg.sender, amount);
+      return amount;
+    }
+
+    function sell(uint amount) public returns (uint revenue) {
+      balances[owner] = balances[owner].add(amount);
+      balances[msg.sender] = balances[msg.sender].sub(amount);
+      msg.sender.transfer(amount * rupeePrice);
+
+      // Bajar valor de moneda
+      if (rupeePrice > 0) {
+        rupeePrice =- 2;
+      }
+      // Registrar transacción
+      totalTransacciones++;
+      transacciones.push(Transaccion(now, rupeePrice));
+
+      emit Transfer(msg.sender, owner, amount);
+      return revenue;
     }
 }
 
